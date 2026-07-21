@@ -17,6 +17,12 @@ source "${PROJECT_ROOT}/src/commands/doctor.bash"
 
 # shellcheck source=tests/loader_test.bash
 source "${TESTS_DIR}/loader_test.bash"
+# shellcheck source=tests/config_test.bash
+source "${TESTS_DIR}/config_test.bash"
+# shellcheck source=tests/prompt_test.bash
+source "${TESTS_DIR}/prompt_test.bash"
+# shellcheck source=tests/bootstrap_test.bash
+source "${TESTS_DIR}/bootstrap_test.bash"
 # shellcheck source=tests/capabilities_test.bash
 source "${TESTS_DIR}/capabilities_test.bash"
 # shellcheck source=tests/theme_test.bash

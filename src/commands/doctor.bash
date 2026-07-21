@@ -10,7 +10,7 @@ modern_bash::doctor::usage() {
     cat <<'USAGE'
 Usage: modern-bash doctor [--plain]
 
-Inspect Bash, output-stream, locale, and terminal capabilities.
+Inspect Bash, interactive setup, configuration, and terminal capabilities.
 
 Options:
   --plain       Use ASCII labels and no ANSI styling
@@ -39,6 +39,8 @@ modern_bash::doctor::run() (
     local unicode_description
     local hyperlink_description
     local tput_path=''
+    local git_path=''
+    local init_path=${MODERN_BASH_SOURCE_DIR}/init.bash
 
     while (($# > 0)); do
         option=$1
@@ -97,6 +99,44 @@ modern_bash::doctor::run() (
         modern_bash::output::success "Optional dependency tput: ${tput_path}"
     else
         modern_bash::output::info 'Optional dependency tput: unavailable (fallbacks active)'
+    fi
+
+    if [[ -f ${init_path} && -r ${init_path} ]]; then
+        modern_bash::output::success "Interactive init: ${init_path}"
+    else
+        modern_bash::output::error "Interactive init: unavailable at ${init_path}"
+        failures=$((failures + 1))
+    fi
+
+    if modern_bash::config::load; then
+        modern_bash::config::apply_defaults
+        if modern_bash::config::validate && modern_bash::bootstrap::validate_features; then
+            if [[ ${MODERN_BASH_CONFIG_FOUND} == 1 ]]; then
+                modern_bash::output::success "Configuration: ${MODERN_BASH_CONFIG_PATH}"
+            elif [[ -n ${MODERN_BASH_CONFIG_PATH} ]]; then
+                modern_bash::output::info "Configuration: ${MODERN_BASH_CONFIG_PATH} (not present; defaults active)"
+            else
+                modern_bash::output::info 'Configuration: disabled; defaults active'
+            fi
+
+            if modern_bash::bootstrap::feature_enabled prompt; then
+                modern_bash::output::success 'Prompt feature: enabled'
+            else
+                modern_bash::output::info 'Prompt feature: disabled'
+            fi
+        else
+            modern_bash::output::error "Configuration: ${MODERN_BASH_CONFIG_ERROR:-${MODERN_BASH_INIT_ERROR}}"
+            failures=$((failures + 1))
+        fi
+    else
+        modern_bash::output::error "Configuration: ${MODERN_BASH_CONFIG_ERROR}"
+        failures=$((failures + 1))
+    fi
+
+    if git_path=$(command -v git 2>/dev/null); then
+        modern_bash::output::success "Optional dependency git: ${git_path}"
+    else
+        modern_bash::output::info 'Optional dependency git: unavailable (Git prompt segment disabled)'
     fi
 
     modern_bash::output::line

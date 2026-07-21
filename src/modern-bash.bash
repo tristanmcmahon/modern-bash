@@ -7,18 +7,23 @@ if [[ ${MODERN_BASH_LOADED:-0} == 1 ]]; then
     return 0
 fi
 
-MODERN_BASH_VERSION=0.1.0
+MODERN_BASH_VERSION=0.2.0
 
-_modern_bash_source_dir=$(
+MODERN_BASH_SOURCE_DIR=$(
     CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P
 ) || return 1
 
 # shellcheck source=src/lib/capabilities.bash
-source "${_modern_bash_source_dir}/lib/capabilities.bash"
+source "${MODERN_BASH_SOURCE_DIR}/lib/capabilities.bash"
 # shellcheck source=src/lib/theme.bash
-source "${_modern_bash_source_dir}/lib/theme.bash"
+source "${MODERN_BASH_SOURCE_DIR}/lib/theme.bash"
 # shellcheck source=src/lib/output.bash
-source "${_modern_bash_source_dir}/lib/output.bash"
+source "${MODERN_BASH_SOURCE_DIR}/lib/output.bash"
+# shellcheck source=src/lib/config.bash
+source "${MODERN_BASH_SOURCE_DIR}/lib/config.bash"
+# shellcheck source=src/features/prompt.bash
+source "${MODERN_BASH_SOURCE_DIR}/features/prompt.bash"
+# shellcheck source=src/lib/bootstrap.bash
+source "${MODERN_BASH_SOURCE_DIR}/lib/bootstrap.bash"
 
-unset _modern_bash_source_dir
 MODERN_BASH_LOADED=1

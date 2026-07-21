@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 
+doctor_test::cli() {
+    HOME=${TEST_TMPDIR}/doctor-home \
+        XDG_CONFIG_HOME=${TEST_TMPDIR}/doctor-xdg \
+        "${PROJECT_ROOT}/bin/modern-bash" "$@"
+}
+
 test_doctor_plain_report() {
-    test::capture env -u NO_COLOR -u FORCE_COLOR "${PROJECT_ROOT}/bin/modern-bash" doctor --plain
+    unset NO_COLOR FORCE_COLOR
+    test::capture doctor_test::cli doctor --plain
     test::assert_eq 0 "${TEST_STATUS}" || return
     test::assert_contains "${TEST_STDOUT}" 'Modern Bash doctor' || return
     test::assert_contains "${TEST_STDOUT}" 'Bash:' || return
@@ -12,27 +19,33 @@ test_doctor_plain_report() {
 }
 
 test_doctor_forced_color_report() {
-    test::capture env FORCE_COLOR=2 MODERN_BASH_UNICODE=never "${PROJECT_ROOT}/bin/modern-bash" doctor
+    unset NO_COLOR
+    FORCE_COLOR=2
+    MODERN_BASH_UNICODE=never
+    export FORCE_COLOR MODERN_BASH_UNICODE
+    test::capture doctor_test::cli doctor
     test::assert_eq 0 "${TEST_STATUS}" || return
     test::assert_contains "${TEST_STDOUT}" $'\033[' || return
     test::assert_contains "${TEST_STDOUT}" 'ANSI 256-colour'
 }
 
 test_doctor_help() {
-    test::capture "${PROJECT_ROOT}/bin/modern-bash" doctor --help
+    test::capture doctor_test::cli doctor --help
     test::assert_eq 0 "${TEST_STATUS}" || return
     test::assert_contains "${TEST_STDOUT}" 'Usage: modern-bash doctor' || return
     test::assert_eq '' "${TEST_STDERR}"
 }
 
 test_doctor_rejects_unknown_option() {
-    test::capture "${PROJECT_ROOT}/bin/modern-bash" doctor --wat
+    test::capture doctor_test::cli doctor --wat
     test::assert_eq 64 "${TEST_STATUS}" || return
     test::assert_contains "${TEST_STDERR}" 'unknown option: --wat'
 }
 
 test_doctor_rejects_invalid_capability_override() {
-    test::capture env MODERN_BASH_UNICODE=sometimes "${PROJECT_ROOT}/bin/modern-bash" doctor
+    MODERN_BASH_UNICODE=sometimes
+    export MODERN_BASH_UNICODE
+    test::capture doctor_test::cli doctor
     test::assert_eq 64 "${TEST_STATUS}" || return
     test::assert_contains "${TEST_STDERR}" 'invalid capability override'
 }
@@ -47,15 +60,44 @@ test_doctor_plain_does_not_leak_configuration() {
 }
 
 test_cli_rejects_unknown_command() {
-    test::capture "${PROJECT_ROOT}/bin/modern-bash" wat
+    test::capture doctor_test::cli wat
     test::assert_eq 64 "${TEST_STATUS}" || return
     test::assert_contains "${TEST_STDERR}" 'unknown command: wat'
 }
 
 test_cli_prints_version() {
-    test::capture "${PROJECT_ROOT}/bin/modern-bash" --version
+    test::capture doctor_test::cli --version
     test::assert_eq 0 "${TEST_STATUS}" || return
-    test::assert_eq 'modern-bash 0.1.0' "${TEST_STDOUT}"
+    test::assert_eq 'modern-bash 0.2.0' "${TEST_STDOUT}"
+}
+
+test_cli_prints_init_code() {
+    test::capture doctor_test::cli init
+    test::assert_eq 0 "${TEST_STATUS}" || return
+    test::assert_contains "${TEST_STDOUT}" 'source ' || return
+    test::assert_contains "${TEST_STDOUT}" '/src/init.bash'
+}
+
+test_doctor_reports_interactive_foundation() {
+    unset MODERN_BASH_CONFIG_FILE
+    test::capture doctor_test::cli doctor --plain
+    test::assert_eq 0 "${TEST_STATUS}" || return
+    test::assert_contains "${TEST_STDOUT}" 'Interactive init:' || return
+    test::assert_contains "${TEST_STDOUT}" 'Configuration:' || return
+    test::assert_contains "${TEST_STDOUT}" 'Prompt feature: enabled' || return
+    test::assert_contains "${TEST_STDOUT}" 'Optional dependency git:'
+}
+
+test_doctor_rejects_invalid_feature_config() {
+    local config_file=${TEST_TMPDIR}/doctor-invalid-config.bash
+
+    printf '%s\n' 'MODERN_BASH_FEATURES=prompt,mystery' >"${config_file}"
+    MODERN_BASH_CONFIG_FILE=${config_file}
+    export MODERN_BASH_CONFIG_FILE
+    test::capture doctor_test::cli doctor --plain
+    test::assert_eq 1 "${TEST_STATUS}" || return
+    test::assert_contains "${TEST_STDOUT}" 'unknown feature: mystery' || return
+    test::assert_contains "${TEST_STDOUT}" 'Summary: 1 failure(s)'
 }
 
 test::run 'doctor produces a complete plain report' test_doctor_plain_report
@@ -66,3 +108,6 @@ test::run 'doctor rejects invalid capability overrides' test_doctor_rejects_inva
 test::run 'doctor plain mode does not leak configuration' test_doctor_plain_does_not_leak_configuration
 test::run 'the CLI rejects unknown commands' test_cli_rejects_unknown_command
 test::run 'the CLI reports its version' test_cli_prints_version
+test::run 'the CLI prints interactive init code' test_cli_prints_init_code
+test::run 'doctor reports the interactive foundation' test_doctor_reports_interactive_foundation
+test::run 'doctor rejects invalid feature configuration' test_doctor_rejects_invalid_feature_config

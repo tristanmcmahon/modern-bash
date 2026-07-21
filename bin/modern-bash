@@ -19,12 +19,21 @@ Usage: modern-bash <command> [options]
 
 Commands:
   doctor    Inspect the shell and terminal environment
+  init      Print the shell code that activates Modern Bash
   help      Show this help
 
 Options:
   -h, --help       Show this help
   -V, --version    Show the Modern Bash version
 USAGE
+}
+
+modern_bash::cli::print_init() {
+    if (($# > 0)); then
+        printf 'modern-bash init: this command takes no arguments\n' >&2
+        return 64
+    fi
+    printf 'source %q\n' "${MODERN_BASH_SOURCE_DIR}/init.bash"
 }
 
 modern_bash::cli::main() {
@@ -37,6 +46,9 @@ modern_bash::cli::main() {
     case ${command_name} in
         doctor)
             modern_bash::doctor::run "$@"
+            ;;
+        init)
+            modern_bash::cli::print_init "$@"
             ;;
         help|-h|--help)
             modern_bash::cli::usage

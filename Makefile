@@ -1,8 +1,8 @@
 SHELL := bash
 
-# ShellCheck follows each annotated source edge with -x, so these two roots
+# ShellCheck follows each annotated source edge with -x, so these entrypoints
 # cover every runtime and test shell file while preserving cross-file analysis.
-SHELLCHECK_ENTRYPOINTS := bin/modern-bash tests/run.sh
+SHELLCHECK_ENTRYPOINTS := bin/modern-bash src/init.bash tests/run.sh
 
 .PHONY: check lint test
 

@@ -47,6 +47,26 @@ Inputs are quoted, external commands are optional where practical, and failure
 paths remain correct with `nounset` and `pipefail`. Libraries do not enable
 `errexit` on behalf of applications.
 
+The interactive entrypoint checks `$-` before loading libraries or user
+configuration. Non-interactive sourcing is silent and inert, while repeated
+interactive initialization is idempotent.
+
+## Treat prompt data as untrusted
+
+Working directories and version-control references can contain shell syntax.
+Dynamic prompt data must remain behind static parameter references in `PS1`,
+must not be interpolated as prompt source, and must have terminal control bytes
+removed. ANSI spans use Readline's non-printing markers so cursor calculations
+remain correct.
+
+Prompt hooks preserve the previous command status and compose with an existing
+`PROMPT_COMMAND` without duplicate installation. Capability probing for the
+prompt must not alter a previously configured output stream's theme snapshot.
+
+User configuration is trusted Bash, explicitly analogous to `.bashrc`. Path
+resolution follows the XDG base-directory convention, missing configuration is
+normal, and invalid settings fail visibly before any feature is enabled.
+
 ## Prefer a small compatibility surface
 
 Bash 3.2 is the supported floor, including the system Bash supplied by macOS.
