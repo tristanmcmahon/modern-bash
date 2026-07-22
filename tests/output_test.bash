@@ -71,7 +71,7 @@ test_output_debug_is_opt_in() {
     unset MODERN_BASH_DEBUG
     test::capture modern_bash::output::debug hidden
     test::assert_eq '' "${TEST_STDOUT}" || return
-    MODERN_BASH_DEBUG=1
+    MODERN_BASH_DEBUG=YeS
     test::capture modern_bash::output::debug visible
     test::assert_eq '. visible' "${TEST_STDOUT}"
 }

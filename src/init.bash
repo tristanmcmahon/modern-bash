@@ -8,17 +8,29 @@ case $- in
     *) return 0 ;;
 esac
 
-if [[ ${MODERN_BASH_INITIALIZED:-0} == 1 ]]; then
-    return 0
-fi
+modern_bash_init_path=${BASH_SOURCE[0]}
+case ${modern_bash_init_path} in
+    */*) modern_bash_init_dir=${modern_bash_init_path%/*} ;;
+    *) modern_bash_init_dir=. ;;
+esac
+modern_bash_init_dir=$(CDPATH='' builtin cd -- "${modern_bash_init_dir}" && builtin pwd -P) || {
+    unset modern_bash_init_path modern_bash_init_dir
+    return 1
+}
+unset modern_bash_init_path
 
 # shellcheck source=src/modern-bash.bash
-source "$({
-    CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P
-})/modern-bash.bash" || return
+builtin source "${modern_bash_init_dir}/modern-bash.bash" || {
+    unset modern_bash_init_dir
+    return 1
+}
+unset modern_bash_init_dir
 
 if ! modern_bash::bootstrap::initialize; then
+    modern_bash_init_safe_error=${MODERN_BASH_INIT_ERROR:-unknown error}
+    modern_bash_init_safe_error=${modern_bash_init_safe_error//[[:cntrl:]]/?}
     printf 'modern-bash: initialization failed: %s\n' \
-        "${MODERN_BASH_INIT_ERROR:-unknown error}" >&2
+        "${modern_bash_init_safe_error}" >&2
+    unset modern_bash_init_safe_error
     return 1
 fi

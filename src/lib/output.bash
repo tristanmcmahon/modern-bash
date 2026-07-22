@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 
-if [[ ${MODERN_BASH_OUTPUT_LOADED:-0} == 1 ]]; then
+modern_bash_output_state_declaration=''
+if modern_bash_output_state_declaration=$(declare -p MODERN_BASH_OUTPUT_LOAD_STATE 2>/dev/null) &&
+    [[ ${modern_bash_output_state_declaration} == declare\ -a\ * ]] &&
+    [[ ${MODERN_BASH_OUTPUT_LOAD_STATE[0]-} == complete ]] &&
+    [[ ${MODERN_BASH_OUTPUT_LOADED:-0} == 1 ]] &&
+    declare -F modern_bash::output::configure >/dev/null &&
+    declare -F modern_bash::output::print >/dev/null; then
+    unset modern_bash_output_state_declaration
     return 0
 fi
+unset modern_bash_output_state_declaration MODERN_BASH_OUTPUT_LOAD_STATE
 
 MODERN_BASH_OUTPUT_LOADED=1
 MODERN_BASH_OUTPUT_INITIALIZED=0
@@ -22,9 +30,6 @@ modern_bash::output::configure() {
     local fd=${1:-2}
 
     MODERN_BASH_OUTPUT_INITIALIZED=0
-    if ! modern_bash::capabilities::_fd_is_open "${fd}"; then
-        return 2
-    fi
     modern_bash::capabilities::detect "${fd}" || return
     modern_bash::theme::init || return
     MODERN_BASH_OUTPUT_FD=${fd}
@@ -118,7 +123,7 @@ modern_bash::output::error() {
 
 modern_bash::output::debug() {
     case ${MODERN_BASH_DEBUG:-0} in
-        1|true|TRUE|yes|YES|on|ON)
+        1|[Tt][Rr][Uu][Ee]|[Yy][Ee][Ss]|[Oo][Nn])
             modern_bash::output::status debug "$@"
             ;;
     esac
@@ -132,3 +137,5 @@ modern_bash::output::print() {
     message=$(modern_bash::output::_message "$@")
     printf '%s\n' "${message}"
 }
+
+MODERN_BASH_OUTPUT_LOAD_STATE=(complete)

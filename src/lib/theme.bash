@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 
-if [[ ${MODERN_BASH_THEME_LOADED:-0} == 1 ]]; then
+modern_bash_theme_state_declaration=''
+if modern_bash_theme_state_declaration=$(declare -p MODERN_BASH_THEME_LOAD_STATE 2>/dev/null) &&
+    [[ ${modern_bash_theme_state_declaration} == declare\ -a\ * ]] &&
+    [[ ${MODERN_BASH_THEME_LOAD_STATE[0]-} == complete ]] &&
+    [[ ${MODERN_BASH_THEME_LOADED:-0} == 1 ]] &&
+    declare -F modern_bash::theme::init >/dev/null; then
+    unset modern_bash_theme_state_declaration
     return 0
 fi
+unset modern_bash_theme_state_declaration MODERN_BASH_THEME_LOAD_STATE
 
 MODERN_BASH_THEME_LOADED=1
 MODERN_BASH_THEME_INITIALIZED=0
@@ -90,3 +97,5 @@ modern_bash::theme::init() {
 
     MODERN_BASH_THEME_INITIALIZED=1
 }
+
+MODERN_BASH_THEME_LOAD_STATE=(complete)

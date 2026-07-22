@@ -51,6 +51,10 @@ The interactive entrypoint checks `$-` before loading libraries or user
 configuration. Non-interactive sourcing is silent and inert, while repeated
 interactive initialization is idempotent.
 
+Module loading is fail-closed: a partial or corrupt runtime never marks itself
+loaded. Internal guard variables inherited through the environment are hints,
+not proof that the corresponding functions exist.
+
 ## Treat prompt data as untrusted
 
 Working directories and version-control references can contain shell syntax.
@@ -62,6 +66,9 @@ remain correct.
 Prompt hooks preserve the previous command status and compose with an existing
 `PROMPT_COMMAND` without duplicate installation. Capability probing for the
 prompt must not alter a previously configured output stream's theme snapshot.
+Status restoration must not manufacture extra `ERR` traps. Activation is
+reversible, and shutdown restores exact unset, scalar, or indexed-array state
+when Modern Bash still owns the hook.
 
 User configuration is trusted Bash, explicitly analogous to `.bashrc`. Path
 resolution follows the XDG base-directory convention, missing configuration is
@@ -74,10 +81,16 @@ Newer Bash features may be used only behind a compatible fallback or alongside
 an explicit compatibility change. Runtime code depends on Bash and ubiquitous
 Unix tools; terminal helpers such as `tput` are opportunistic.
 
+The managed installer may copy runtime files and documentation, but it never
+edits shell startup files or user configuration. It must refuse unmanaged
+collisions, follow its own launcher symlink safely, and preserve configuration
+during uninstall.
+
 ## Make behaviour executable
 
 Every public behaviour needs a deterministic test, especially stream routing,
 format-string safety, override precedence, and escape-sequence suppression.
 Tests must not depend on the terminal running them. The test harness itself has
 no third-party runtime dependency, and every shell file is checked with
-ShellCheck.
+ShellCheck. Continuous integration exercises Ubuntu's Bash and the macOS system
+Bash 3.2 so the compatibility claim remains executable.

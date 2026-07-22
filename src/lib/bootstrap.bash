@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 
-if [[ ${MODERN_BASH_BOOTSTRAP_LOADED:-0} == 1 ]]; then
+modern_bash_bootstrap_state_declaration=''
+if modern_bash_bootstrap_state_declaration=$(declare -p MODERN_BASH_BOOTSTRAP_LOAD_STATE 2>/dev/null) &&
+    [[ ${modern_bash_bootstrap_state_declaration} == declare\ -a\ * ]] &&
+    [[ ${MODERN_BASH_BOOTSTRAP_LOAD_STATE[0]-} == complete ]] &&
+    [[ ${MODERN_BASH_BOOTSTRAP_LOADED:-0} == 1 ]] &&
+    declare -F modern_bash::bootstrap::initialize >/dev/null &&
+    declare -F modern_bash::bootstrap::shutdown >/dev/null; then
+    unset modern_bash_bootstrap_state_declaration
     return 0
 fi
+unset modern_bash_bootstrap_state_declaration MODERN_BASH_BOOTSTRAP_LOAD_STATE
 
 MODERN_BASH_BOOTSTRAP_LOADED=1
-MODERN_BASH_INITIALIZED=${MODERN_BASH_INITIALIZED:-0}
+MODERN_BASH_INITIALIZED=0
 MODERN_BASH_INIT_ERROR=''
 
 modern_bash::bootstrap::_enable_feature() {
@@ -28,6 +36,8 @@ modern_bash::bootstrap::_enable_feature() {
 modern_bash::bootstrap::validate_features() {
     local remaining=${MODERN_BASH_FEATURES}
     local feature_name
+
+    MODERN_BASH_INIT_ERROR=''
 
     if [[ -z ${remaining} ]]; then
         return 0
@@ -124,3 +134,17 @@ modern_bash::bootstrap::initialize() {
 
     MODERN_BASH_INITIALIZED=1
 }
+
+modern_bash::bootstrap::shutdown() {
+    MODERN_BASH_INIT_ERROR=''
+
+    if [[ ${MODERN_BASH_PROMPT_ENABLED:-0} == 1 ]]; then
+        if ! modern_bash::prompt::disable; then
+            MODERN_BASH_INIT_ERROR=${MODERN_BASH_PROMPT_ERROR:-prompt shutdown failed}
+            return 1
+        fi
+    fi
+    MODERN_BASH_INITIALIZED=0
+}
+
+MODERN_BASH_BOOTSTRAP_LOAD_STATE=(complete)

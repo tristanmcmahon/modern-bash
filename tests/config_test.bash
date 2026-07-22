@@ -8,6 +8,13 @@ test_config_prefers_explicit_path() {
     test::assert_eq "${MODERN_BASH_CONFIG_FILE}" "${MODERN_BASH_CONFIG_PATH}"
 }
 
+test_config_tracks_explicit_disable() {
+    MODERN_BASH_CONFIG_FILE=''
+    modern_bash::config::resolve
+    test::assert_eq '' "${MODERN_BASH_CONFIG_PATH}" || return
+    test::assert_eq 1 "${MODERN_BASH_CONFIG_DISABLED}"
+}
+
 test_config_uses_xdg_path() {
     unset MODERN_BASH_CONFIG_FILE
     XDG_CONFIG_HOME=${TEST_TMPDIR}/xdg
@@ -67,6 +74,29 @@ test_config_rejects_non_regular_file() {
     test::assert_contains "${MODERN_BASH_CONFIG_ERROR}" 'not a readable regular file'
 }
 
+test_config_rejects_dangling_symlink() {
+    local config_file=${TEST_TMPDIR}/dangling-config.bash
+    local status=0
+
+    command ln -s "${TEST_TMPDIR}/missing-config-target" "${config_file}" || return
+    MODERN_BASH_CONFIG_FILE=${config_file}
+    MODERN_BASH_CONFIG_LOADED=0
+    modern_bash::config::load || status=$?
+    test::assert_eq 1 "${status}" || return
+    test::assert_contains "${MODERN_BASH_CONFIG_ERROR}" 'not a readable regular file'
+}
+
+test_config_uses_the_source_builtin() {
+    local config_file=${TEST_TMPDIR}/builtin-source-config.bash
+
+    printf '%s\n' 'MODERN_BASH_BUILTIN_SOURCE_WORKED=1' >"${config_file}"
+    source() { return 99; }
+    MODERN_BASH_CONFIG_FILE=${config_file}
+    MODERN_BASH_CONFIG_LOADED=0
+    modern_bash::config::load || return
+    test::assert_eq 1 "${MODERN_BASH_BUILTIN_SOURCE_WORKED}"
+}
+
 test_config_rejects_invalid_prompt_setting() {
     local status=0
 
@@ -79,11 +109,56 @@ test_config_rejects_invalid_prompt_setting() {
     test::assert_contains "${MODERN_BASH_CONFIG_ERROR}" 'MODERN_BASH_PROMPT_GIT'
 }
 
+test_config_reports_source_failure_and_can_retry() {
+    local config_file=${TEST_TMPDIR}/retry-config.bash
+    local status=0
+
+    printf '%s\n' 'return 23' >"${config_file}"
+    MODERN_BASH_CONFIG_FILE=${config_file}
+    MODERN_BASH_CONFIG_LOADED=0
+    modern_bash::config::load || status=$?
+    test::assert_eq 1 "${status}" || return
+    test::assert_eq 0 "${MODERN_BASH_CONFIG_LOADED}" || return
+    test::assert_contains "${MODERN_BASH_CONFIG_ERROR}" 'returned an error' || return
+
+    printf '%s\n' 'MODERN_BASH_CONFIG_RETRY_WORKED=1' >"${config_file}"
+    modern_bash::config::load || return
+    test::assert_eq 1 "${MODERN_BASH_CONFIG_RETRY_WORKED}" || return
+    test::assert_eq 1 "${MODERN_BASH_CONFIG_LOADED}"
+}
+
+test_config_validation_clears_stale_errors() {
+    MODERN_BASH_CONFIG_ERROR='old error'
+    MODERN_BASH_PROMPT_GIT=1
+    MODERN_BASH_PROMPT_STATUS=nonzero
+    MODERN_BASH_PROMPT_MULTILINE=1
+    modern_bash::config::validate || return
+    test::assert_eq '' "${MODERN_BASH_CONFIG_ERROR}"
+}
+
+test_config_rejects_invalid_capability_override() {
+    local status=0
+
+    MODERN_BASH_PROMPT_GIT=1
+    MODERN_BASH_PROMPT_STATUS=nonzero
+    MODERN_BASH_PROMPT_MULTILINE=1
+    MODERN_BASH_COLOR=sometimes
+    modern_bash::config::validate || status=$?
+    test::assert_eq 2 "${status}" || return
+    test::assert_contains "${MODERN_BASH_CONFIG_ERROR}" 'MODERN_BASH_COLOR'
+}
+
 test::run 'explicit config paths take precedence' test_config_prefers_explicit_path
+test::run 'an empty explicit config path is tracked as disabled' test_config_tracks_explicit_disable
 test::run 'XDG_CONFIG_HOME selects the config path' test_config_uses_xdg_path
 test::run 'relative XDG paths fall back to HOME' test_config_ignores_relative_xdg_path
 test::run 'missing config files activate defaults' test_config_missing_file_uses_defaults
 test::run 'configuration is loaded only once' test_config_loads_only_once
 test::run 'config paths with spaces and percent signs load safely' test_config_loads_quoted_path
 test::run 'non-regular config paths are rejected' test_config_rejects_non_regular_file
+test::run 'dangling config symlinks are rejected' test_config_rejects_dangling_symlink
+test::run 'config loading selects the source builtin explicitly' test_config_uses_the_source_builtin
 test::run 'invalid prompt configuration is rejected' test_config_rejects_invalid_prompt_setting
+test::run 'failed configuration loads can be retried' test_config_reports_source_failure_and_can_retry
+test::run 'successful validation clears stale errors' test_config_validation_clears_stale_errors
+test::run 'invalid capability overrides are rejected by config validation' test_config_rejects_invalid_capability_override

@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 
-if [[ ${MODERN_BASH_CAPABILITIES_LOADED:-0} == 1 ]]; then
+modern_bash_capabilities_state_declaration=''
+if modern_bash_capabilities_state_declaration=$(declare -p MODERN_BASH_CAPABILITIES_LOAD_STATE 2>/dev/null) &&
+    [[ ${modern_bash_capabilities_state_declaration} == declare\ -a\ * ]] &&
+    [[ ${MODERN_BASH_CAPABILITIES_LOAD_STATE[0]-} == complete ]] &&
+    [[ ${MODERN_BASH_CAPABILITIES_LOADED:-0} == 1 ]] &&
+    declare -F modern_bash::capabilities::detect >/dev/null &&
+    declare -F modern_bash::capabilities::color_name >/dev/null; then
+    unset modern_bash_capabilities_state_declaration
     return 0
 fi
+unset modern_bash_capabilities_state_declaration MODERN_BASH_CAPABILITIES_LOAD_STATE
 
 MODERN_BASH_CAPABILITIES_LOADED=1
 MODERN_BASH_CAPABILITIES_DETECTED=0
@@ -50,7 +58,7 @@ modern_bash::capabilities::_automatic_color_level() {
     esac
 
     if command -v tput >/dev/null 2>&1 && [[ -n ${TERM:-} ]]; then
-        if ! colors=$(tput colors 2>/dev/null); then
+        if ! colors=$(command tput colors 2>/dev/null); then
             printf '0\n'
             return 0
         fi
@@ -210,7 +218,7 @@ modern_bash::capabilities::_detect_columns() {
     esac
 
     if [[ -z ${columns} ]] && ((MODERN_BASH_CAP_TTY == 1)) && command -v tput >/dev/null 2>&1 && [[ -n ${TERM:-} ]]; then
-        if columns=$(tput cols 2>/dev/null); then
+        if columns=$(command tput cols 2>/dev/null); then
             case ${columns} in
                 ''|0*|*[!0-9]*) columns='' ;;
             esac
@@ -226,7 +234,7 @@ modern_bash::capabilities::detect() {
     local fd=${1:-1}
 
     MODERN_BASH_CAPABILITIES_DETECTED=0
-    if ! modern_bash::capabilities::_valid_fd "${fd}"; then
+    if ! modern_bash::capabilities::_fd_is_open "${fd}"; then
         return 2
     fi
 
@@ -255,3 +263,5 @@ modern_bash::capabilities::color_name() {
         *) printf 'unknown\n'; return 2 ;;
     esac
 }
+
+MODERN_BASH_CAPABILITIES_LOAD_STATE=(complete)
